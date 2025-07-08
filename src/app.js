@@ -1,21 +1,20 @@
 import axios from 'axios';
 import express from 'express';
 import dotenv from 'dotenv';
-// Corrigido para o nome do seu arquivo, com a extensão .js
-import { createGoogleCalendarEvent } from './calendarConfig.js';
+import { createGoogleCalendarEvent, updateCancelledEvent } from './calendarConfig.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Corrigido o nome da variável para 'processedAttendees'
 const processedAttendees = new Set();
+
+const eventbriteToGoogleMap = new Map();
 
 app.use(express.json());
 
 /**
- * Encontra a resposta para uma pergunta específica pelo texto da pergunta.
  * @param {Array} answers - O array 'answers' do objeto do participante.
  * @param {string} questionText - O texto exato da pergunta que você quer encontrar.
  * @param {string} [defaultValue=''] - O valor a ser retornado se a resposta não for encontrada.
@@ -26,17 +25,11 @@ function findAnswerByQuestion(answers, questionText, defaultValue = 'Não inform
     return foundAnswer && foundAnswer.answer ? foundAnswer.answer : defaultValue;
 }
 
-/**
- * Formata uma data no padrão brasileiro (DD/MM/YYYY HH:MM:SS).
- * @param {string} dateString - A data em formato ISO.
- * @returns {string} A data formatada.
- */
 function formatBrazilianDate(dateString) {
     if (!dateString) return 'Data não informada';
     const date = new Date(dateString);
     return date.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
-
 
 app.get('/', (req, res) => {
     res.send('Servidor de integração está no ar!');
@@ -44,7 +37,6 @@ app.get('/', (req, res) => {
 
 app.post('/webhook/eventbrite', async (req, res) => {
     console.log('--- Webhook do Eventbrite recebido! ---');
-    console.log('Corpo da requisição:', JSON.stringify(req.body, null, 2));
 
     if (req.body.config && req.body.config.action === 'test') {
         console.log('Recebida requisição de teste. Ignorando.');
@@ -64,6 +56,18 @@ app.post('/webhook/eventbrite', async (req, res) => {
         const attendeeData = attendeeResponse.data;
         const attendeeId = attendeeData.id;
 
+        if (attendeeData.cancelled) {
+            console.log(`Participante ${attendeeId} cancelado. Procurando evento correspondente...`);
+            if (eventbriteToGoogleMap.has(attendeeId)) {
+                const eventMappingsToUpdate = eventbriteToGoogleMap.get(attendeeId);
+                await updateCancelledEvent(eventMappingsToUpdate);
+                eventbriteToGoogleMap.delete(attendeeId);
+            } else {
+                console.log(`Nenhum evento encontrado para o participante ${attendeeId}.`);
+            }
+            return res.status(200).send('Evento cancelado com sucesso.');
+        }
+
         if (processedAttendees.has(attendeeId)) {
             console.log(`Participante ${attendeeId} já processado. Ignorando esta atualização.`);
             return res.status(200).send('Atualização ignorada, participante já processado.');
@@ -77,7 +81,13 @@ app.post('/webhook/eventbrite', async (req, res) => {
         });
         const eventData = eventResponse.data;
 
-        // --- EXTRAÇÃO DE DADOS ---
+        const eventName = eventData.name.text || '';
+        if (!eventName.toUpperCase().includes('ESCOLAS')) {
+            console.log(`- Pedido do participante ${attendeeId} ignorado (Evento: "${eventName}" não é para escolas).`);
+            return res.status(200).send('Webhook recebido e ignorado (evento não aplicável).');
+        }
+
+        // data extract
         const answers = attendeeData.answers || [];
         const profile = attendeeData.profile;
 
@@ -107,13 +117,13 @@ app.post('/webhook/eventbrite', async (req, res) => {
         const atividade2Obj = answers.find(a => a.question === "Segunda atividade" && a.answer);
         const atividade2 = atividade2Obj ? atividade2Obj.answer : 'Não informada';
 
-
-        // --- CONSTRUÇÃO CONTROLADA DO HTML ---
+        // CALENDAR EVENT CREATION
         const descriptionLines = [
+            `<b>WebHook by guilherme</b>`,
             `<b>Data da compra:</b> ${dataCompra}`,
             `<b>Data da visita:</b> ${dataVisita}`,
             `<b>Número do pedido:</b> ${numeroPedido}`,
-            '', // Linha em branco
+            '',
             `<b>Responsável:</b> ${nomeResponsavel}`,
             `<b>Email:</b> ${emailResponsavel}`,
             `<b>Celular do resp.:</b> ${celular}`,
@@ -127,21 +137,28 @@ app.post('/webhook/eventbrite', async (req, res) => {
             `<b>Idade:</b> ${idadeAlunos}`,
             `<b>Número de alunos:</b> ${numAlunos}`,
             `<b>Número de acompanhantes:</b> ${numAcompanhantes}`,
-            '', // Linha em branco
+            '',
             `<b>Primeira Atividade:</b> ${atividade1}`,
             `<b>Segunda Atividade:</b> ${atividade2}`,
-            '', // Linha em branco
+            '',
             `<b>Há idosos ou pessoas que necessitam de atendimento especializado no grupo?</b> ${atendimentoEspecializado}`
         ];
 
         const descriptionHtml = descriptionLines.join('<br>');
 
         const googleEvent = {
-            summary: ` ${nomeEscola || 'Visita Agendada'}`,
+            summary: `${nomeEscola || 'Visita Agendada'}`,
             description: descriptionHtml,
             start: { dateTime: eventData.start.local, timeZone: eventData.start.timezone },
             end: { dateTime: eventData.end.local, timeZone: eventData.end.timezone },
         };
+
+        const createdEventsInfo = await createGoogleCalendarEvent(googleEvent);
+
+        if (createdEventsInfo && createdEventsInfo.length > 0) {
+            eventbriteToGoogleMap.set(attendeeId, createdEventsInfo);
+            console.log(`Dados guardados para o evento ${attendeeId}.`);
+        }
 
         console.log('Enviando para o Google Calendar...');
         await createGoogleCalendarEvent(googleEvent);
@@ -155,5 +172,5 @@ app.post('/webhook/eventbrite', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor de integração está no ar!`);
 });

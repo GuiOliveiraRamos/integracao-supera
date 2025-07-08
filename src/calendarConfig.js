@@ -6,38 +6,77 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Caminho para o seu arquivo de credenciais JSON
+// Caminho para o seu ficheiro de credenciais JSON
 const KEYFILEPATH = path.join(__dirname, '..', 'google-credentials.json');
 
-// ID do seu Google Agenda. Encontre nas configurações da agenda.
-const CALENDAR_ID = 'ccvisita@gmail.com';
+const CALENDAR_IDS = [
+    'ccvisita@gmail.com',
+    'ccsetoreducativo@gmail.com'
+];
 
-// Configura a autenticação usando a Conta de Serviço
 const auth = new google.auth.GoogleAuth({
     keyFile: KEYFILEPATH,
     scopes: ['https://www.googleapis.com/auth/calendar'],
 });
 
-// Cria uma instância do cliente da API do Calendar
 const calendar = google.calendar({ version: 'v3', auth });
 
-/**
- * Cria um novo evento no Google Calendar.
- * @param {object} eventData - O objeto do evento a ser criado.
- */
 export async function createGoogleCalendarEvent(eventData) {
-    try {
-        console.log('Enviando evento para o Google Calendar...');
-        const response = await calendar.events.insert({
-            calendarId: CALENDAR_ID,
+    console.log(`Enviando evento para ${CALENDAR_IDS.length} agenda(s)...`);
+
+    const creationPromises = CALENDAR_IDS.map(calendarId => {
+        console.log(`- Criando evento na agenda: ${calendarId}`);
+        return calendar.events.insert({
+            calendarId: calendarId,
             resource: eventData,
-            sendNotifications: true, // Envia notificação para os convidados
         });
-        console.log('Evento criado com sucesso! Link:', response.data.htmlLink);
-        return response.data;
+    });
+
+    try {
+        const results = await Promise.all(creationPromises);
+        console.log('Evento criado com sucesso em todas as agendas!');
+
+        results.forEach((response, index) => {
+            console.log(`  - Link para agenda ${CALENDAR_IDS[index]}: ${response.data.htmlLink}`);
+        });
+
+        return results;
     } catch (error) {
-        console.error('Erro ao criar evento no Google Calendar:', error.message);
-        // Lança o erro para que a rota principal possa tratá-lo
+        console.error('Erro ao criar evento numa das agendas do Google:', error.message);
         throw error;
     }
+}
+
+export async function updateCancelledEvent(eventMappings) {
+    console.log(`Atualizando ${eventMappings.length} evento(s) para o estado cancelado...`);
+
+    const updatePromises = eventMappings.map(async (mapping) => {
+        try {
+            const currentEvent = await calendar.events.get({
+                calendarId: mapping.calendarId,
+                eventId: mapping.eventId,
+            });
+
+            const originalSummary = currentEvent.data.summary;
+
+            const patchData = {
+                summary: `(CANCELADO) ${originalSummary}`,
+                colorId: '4'
+            };
+
+            console.log(`- Atualizando evento ${mapping.eventId} na agenda ${mapping.calendarId}`);
+            return calendar.events.patch({
+                calendarId: mapping.calendarId,
+                eventId: mapping.eventId,
+                resource: patchData,
+            });
+
+        } catch (error) {
+            console.error(`Erro ao atualizar o evento ${mapping.eventId} na agenda ${mapping.calendarId}:`, error.message);
+            return null;
+        }
+    });
+
+    await Promise.all(updatePromises);
+    console.log("Atualização de eventos cancelados concluída.");
 }
