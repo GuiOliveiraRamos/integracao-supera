@@ -1,0 +1,30 @@
+{
+  "name": "integracao-calendar",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000I\u0000n\u0000t\u0000e\u0000g\u0000r\u0000a\u0000�\u0000�\u0000o\u0000-\u0000C\u0000a\u0000l\u0000e\u0000n\u0000d\u0000a\u0000r\u0000\r\u0000 \u0000",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuiOliveiraRamos/Integra-o-Calendar.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GuiOliveiraRamos/Integra-o-Calendar/issues"
+  },
+  "homepage": "https://github.com/GuiOliveiraRamos/Integra-o-Calendar#readme",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "dotenv": "^17.0.1",
+    "express": "^5.1.0",
+    "googleapis": "^150.0.1",
+    "nodemon": "^3.1.10"
+  }
+}

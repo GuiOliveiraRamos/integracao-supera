@@ -1,0 +1,21 @@
+# Node.js
+node_modules/
+.env
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+dist/
+build/
+.DS_Store
+*.log
+coverage/
+.env.*
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+*.tgz
+package-lock.json
+yarn.lock
+.pnpm-debug.log
+google-credentials.json
