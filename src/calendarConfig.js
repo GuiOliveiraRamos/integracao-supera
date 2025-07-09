@@ -24,14 +24,14 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
     auth = new google.auth.GoogleAuth({
         credentials: credentials,
-        scopes: ['https://www.googleapis.com/auth/calendar']
+        scopes: ['https://www.googleapis.com/auth/calendar.events']
     });
     //----------------------------------------------------------------//
 } else {
     console.log('AUTENTICAÇÃO VIA ARQUIVO JSON');
     auth = new google.auth.GoogleAuth({
         keyFile: KEYFILEPATH,
-        scopes: ['https://www.googleapis.com/auth/calendar']
+        scopes: ['https://www.googleapis.com/auth/calendar.events']
     });
 }
 
