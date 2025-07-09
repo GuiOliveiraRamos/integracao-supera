@@ -2,22 +2,38 @@ import { google } from 'googleapis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Helper para obter o caminho do diretório atual ao usar ES Modules
+// ----CONFIGURAÇÃO DO GOOGLE CREDENTIALS COM ARQUIVO JSON----//
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Caminho para o seu ficheiro de credenciais JSON
 const KEYFILEPATH = path.join(__dirname, '..', 'google-credentials.json');
 
+// ------------------------------------------------------------//
+
 const CALENDAR_IDS = [
     'ccvisita@gmail.com',
     'ccsetoreducativo@gmail.com'
 ];
 
-const auth = new google.auth.GoogleAuth({
-    keyFile: KEYFILEPATH,
-    scopes: ['https://www.googleapis.com/auth/calendar'],
-});
+let auth;
+//----CONFIGURAÇÃO DO GOOGLE CREDENTIALS COM VARIÁVEL DE AMBIENTE----//
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+    console.log('AUTENTICAÇÃO VIA VARIÁVEL DE AMBIENTE');
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+    auth = new google.auth.GoogleAuth({
+        credentials: credentials,
+        scopes: ['https://www.googleapis.com/auth/calendar']
+    });
+    //----------------------------------------------------------------//
+} else {
+    console.log('AUTENTICAÇÃO VIA ARQUIVO JSON');
+    auth = new google.auth.GoogleAuth({
+        keyFile: KEYFILEPATH,
+        scopes: ['https://www.googleapis.com/auth/calendar']
+    });
+}
 
 const calendar = google.calendar({ version: 'v3', auth });
 
