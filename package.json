@@ -21,10 +21,12 @@
   },
   "homepage": "https://github.com/GuiOliveiraRamos/Integra-o-Calendar#readme",
   "dependencies": {
+    "@logtail/pino": "^0.5.5",
     "axios": "^1.10.0",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "googleapis": "^150.0.1",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "pino": "^9.7.0"
   }
 }

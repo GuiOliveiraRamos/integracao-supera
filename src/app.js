@@ -2,6 +2,7 @@ import axios from 'axios';
 import express from 'express';
 import dotenv from 'dotenv';
 import { createGoogleCalendarEvent, updateCancelledEvent } from './calendarConfig.js';
+import logger from './logger.js';
 
 dotenv.config();
 
@@ -20,9 +21,9 @@ app.use(express.json());
  * @param {string} [defaultValue=''] - O valor a ser retornado se a resposta não for encontrada.
  * @returns {string} A resposta encontrada ou o valor padrão.
  */
-function findAnswerByQuestion(answers, questionText, defaultValue = 'Não informado') {
-    const foundAnswer = answers.find(a => a.question === questionText);
-    return foundAnswer && foundAnswer.answer ? foundAnswer.answer : defaultValue;
+function findAnswerByQuestion(answers, partialText, defaultValue = 'Não informado') {
+    const foundAnswer = answers.find(a => a.question.includes(partialText) && a.answer);
+    return foundAnswer ? foundAnswer.answer : defaultValue;
 }
 
 function formatBrazilianDate(dateString) {
@@ -36,16 +37,16 @@ app.get('/', (req, res) => {
 });
 
 app.post('/webhook/eventbrite', async (req, res) => {
-    console.log('--- Webhook do Eventbrite recebido! ---');
+    logger.info('--- Webhook do Eventbrite recebido! ---');
 
     if (req.body.config && req.body.config.action === 'test') {
-        console.log('Recebida requisição de teste. Ignorando.');
+        logger.info('Recebida requisição de teste. Ignorando.');
         return res.status(200).send('Teste recebido com sucesso.');
     }
 
     const apiUrl = req.body.api_url;
     if (!apiUrl) {
-        console.error('URL da API não fornecida no corpo da requisição.');
+        logger.error('URL da API não fornecida no corpo da requisição.');
         return res.status(400).send('URL da API não fornecida.');
     }
 
@@ -57,19 +58,19 @@ app.post('/webhook/eventbrite', async (req, res) => {
         const attendeeId = attendeeData.id;
 
         if (attendeeData.cancelled) {
-            console.log(`Participante ${attendeeId} cancelado. Procurando evento correspondente...`);
+            logger.info(`Participante ${attendeeId} cancelado. Procurando evento correspondente...`);
             if (eventbriteToGoogleMap.has(attendeeId)) {
                 const eventMappingsToUpdate = eventbriteToGoogleMap.get(attendeeId);
                 await updateCancelledEvent(eventMappingsToUpdate);
                 eventbriteToGoogleMap.delete(attendeeId);
             } else {
-                console.log(`Nenhum evento encontrado para o participante ${attendeeId}.`);
+                logger.info(`Nenhum evento encontrado para o participante ${attendeeId}.`);
             }
             return res.status(200).send('Evento cancelado com sucesso.');
         }
 
         if (processedAttendees.has(attendeeId)) {
-            console.log(`Participante ${attendeeId} já processado. Ignorando esta atualização.`);
+            logger.info(`Participante ${attendeeId} já processado. Ignorando esta atualização.`);
             return res.status(200).send('Atualização ignorada, participante já processado.');
         }
         processedAttendees.add(attendeeId);
@@ -83,7 +84,7 @@ app.post('/webhook/eventbrite', async (req, res) => {
 
         const eventName = eventData.name.text || '';
         if (!eventName.toUpperCase().includes('ESCOLAS')) {
-            console.log(`- Pedido do participante ${attendeeId} ignorado (Evento: "${eventName}" não é para escolas).`);
+            logger.info(`- Pedido do participante ${attendeeId} ignorado (Evento: "${eventName}" não é para escolas).`);
             return res.status(200).send('Webhook recebido e ignorado (evento não aplicável).');
         }
 
@@ -107,8 +108,11 @@ app.post('/webhook/eventbrite', async (req, res) => {
         const telefoneEscola = findAnswerByQuestion(answers, 'Telefone da ESCOLA/GRUPO');
         const anoEscolar = findAnswerByQuestion(answers, 'Ano escolar dos alunos/visitantes');
         const idadeAlunos = findAnswerByQuestion(answers, 'Idade dos alunos/visitantes');
-        const numAlunos = findAnswerByQuestion(answers, 'Número de alunos (mín. 20 máx. 40)');
-        const numAcompanhantes = findAnswerByQuestion(answers, 'Número de acompanhantes (máx. 5)');
+        let numAlunos = findAnswerByQuestion(answers, 'Número de alunos');
+        if (numAlunos === 'Não informado') {
+            numAlunos = findAnswerByQuestion(answers, 'Número de visitantes');
+        }
+        const numAcompanhantes = findAnswerByQuestion(answers, 'Número de acompanhantes');
         const atendimentoEspecializado = findAnswerByQuestion(answers, 'Há idosos ou pessoas que necessitam de atendimento especializado no grupo?');
 
         const atividade1Obj = answers.find(a => a.question === "Selecione as atividades do roteiro" && a.answer);
@@ -157,20 +161,15 @@ app.post('/webhook/eventbrite', async (req, res) => {
 
         if (createdEventsInfo && createdEventsInfo.length > 0) {
             eventbriteToGoogleMap.set(attendeeId, createdEventsInfo);
-            console.log(`Dados guardados para o evento ${attendeeId}.`);
+            logger.info(`Dados guardados para o evento ${attendeeId}.`);
         }
-
-        console.log('Enviando para o Google Calendar...');
-        await createGoogleCalendarEvent(googleEvent);
-
         res.status(200).send('Webhook processado e evento criado com sucesso.');
-
     } catch (error) {
-        console.error('Erro no processamento do webhook:', error.response ? error.response.data : error.message);
+        logger.error('Erro no processamento do webhook:', error.response ? error.response.data : error.message);
         res.status(500).send('Erro ao processar o webhook.');
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor de integração está no ar!`);
+    logger.info(`Servidor de integração está no ar!`);
 });

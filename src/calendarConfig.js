@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from './logger.js';
 
 // ----CONFIGURAÇÃO DO GOOGLE CREDENTIALS COM ARQUIVO JSON----//
 
@@ -20,7 +21,7 @@ const CALENDAR_IDS = [
 let auth;
 //----CONFIGURAÇÃO DO GOOGLE CREDENTIALS COM VARIÁVEL DE AMBIENTE----//
 if (process.env.GOOGLE_CREDENTIALS_JSON) {
-    console.log('AUTENTICAÇÃO VIA VARIÁVEL DE AMBIENTE');
+    logger.info('AUTENTICAÇÃO VIA VARIÁVEL DE AMBIENTE');
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
     auth = new google.auth.GoogleAuth({
         credentials: credentials,
@@ -28,7 +29,7 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
     });
     //----------------------------------------------------------------//
 } else {
-    console.log('AUTENTICAÇÃO VIA ARQUIVO JSON');
+    logger.info('AUTENTICAÇÃO VIA ARQUIVO JSON');
     auth = new google.auth.GoogleAuth({
         keyFile: KEYFILEPATH,
         scopes: ['https://www.googleapis.com/auth/calendar.events']
@@ -38,10 +39,8 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
 const calendar = google.calendar({ version: 'v3', auth });
 
 export async function createGoogleCalendarEvent(eventData) {
-    console.log(`Enviando evento para ${CALENDAR_IDS.length} agenda(s)...`);
-
     const creationPromises = CALENDAR_IDS.map(calendarId => {
-        console.log(`- Criando evento na agenda: ${calendarId}`);
+        logger.info(`- Criando evento na agenda: ${calendarId}`);
         return calendar.events.insert({
             calendarId: calendarId,
             resource: eventData,
@@ -50,21 +49,19 @@ export async function createGoogleCalendarEvent(eventData) {
 
     try {
         const results = await Promise.all(creationPromises);
-        console.log('Evento criado com sucesso em todas as agendas!');
-
         results.forEach((response, index) => {
-            console.log(`  - Link para agenda ${CALENDAR_IDS[index]}: ${response.data.htmlLink}`);
+            logger.info(`Eventos criados com sucesso - Link para agenda ${CALENDAR_IDS[index]}: ${response.data.htmlLink}`);
         });
 
         return results;
     } catch (error) {
-        console.error('Erro ao criar evento numa das agendas do Google:', error.message);
+        logger.error('Erro ao criar evento numa das agendas do Google:', error.message);
         throw error;
     }
 }
 
 export async function updateCancelledEvent(eventMappings) {
-    console.log(`Atualizando ${eventMappings.length} evento(s) para o estado cancelado...`);
+    logger.info(`Atualizando ${eventMappings.length} evento(s) para o estado cancelado...`);
 
     const updatePromises = eventMappings.map(async (mapping) => {
         try {
@@ -80,7 +77,7 @@ export async function updateCancelledEvent(eventMappings) {
                 colorId: '4'
             };
 
-            console.log(`- Atualizando evento ${mapping.eventId} na agenda ${mapping.calendarId}`);
+            logger.info(`- Atualizando evento ${mapping.eventId} na agenda ${mapping.calendarId}`);
             return calendar.events.patch({
                 calendarId: mapping.calendarId,
                 eventId: mapping.eventId,
@@ -88,11 +85,11 @@ export async function updateCancelledEvent(eventMappings) {
             });
 
         } catch (error) {
-            console.error(`Erro ao atualizar o evento ${mapping.eventId} na agenda ${mapping.calendarId}:`, error.message);
+            logger.error(`Erro ao atualizar o evento ${mapping.eventId} na agenda ${mapping.calendarId}:`, error.message);
             return null;
         }
     });
 
     await Promise.all(updatePromises);
-    console.log("Atualização de eventos cancelados concluída.");
+    logger.info("Atualização de eventos cancelados concluída.");
 }
