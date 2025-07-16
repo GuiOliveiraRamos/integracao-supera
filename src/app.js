@@ -58,15 +58,17 @@ app.post('/webhook/eventbrite', async (req, res) => {
         const attendeeId = attendeeData.id;
 
         if (attendeeData.cancelled) {
-            logger.info(`Participante ${attendeeId} cancelado. Procurando evento correspondente...`);
-            if (eventbriteToGoogleMap.has(attendeeId)) {
-                const eventMappingsToUpdate = eventbriteToGoogleMap.get(attendeeId);
-                await updateCancelledEvent(eventMappingsToUpdate);
-                eventbriteToGoogleMap.delete(attendeeId);
-            } else {
-                logger.info(`Nenhum evento encontrado para o participante ${attendeeId}.`);
-            }
-            return res.status(200).send('Evento cancelado com sucesso.');
+            // --------------- TO DO -------------------
+
+            // logger.info(`Participante ${attendeeId} cancelado. Procurando evento correspondente...`);
+            // if (eventbriteToGoogleMap.has(attendeeId)) {
+            //     const eventMappingsToUpdate = eventbriteToGoogleMap.get(attendeeId);
+            //     await updateCancelledEvent(eventMappingsToUpdate);
+            //     eventbriteToGoogleMap.delete(attendeeId);
+            // } else {
+            //     logger.info(`Nenhum evento encontrado para o participante ${attendeeId}.`);
+            // }
+            // return res.status(200).send('Evento cancelado com sucesso.');
         }
 
         if (processedAttendees.has(attendeeId)) {
