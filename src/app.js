@@ -58,6 +58,7 @@ app.post('/webhook/eventbrite', async (req, res) => {
         const attendeeId = attendeeData.id;
 
         if (attendeeData.cancelled) {
+            return res.status(200).send('Participante cancelado, ignorando atualização.');
             // --------------- TO DO -------------------
 
             // logger.info(`Participante ${attendeeId} cancelado. Procurando evento correspondente...`);
