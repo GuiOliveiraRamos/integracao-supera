@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "src/app.js",
+    "start": "node src/app.js",
     "dev": "nodemon src/app.js"
   },
   "repository": {
@@ -21,12 +21,9 @@
   },
   "homepage": "https://github.com/GuiOliveiraRamos/Integra-o-Calendar#readme",
   "dependencies": {
-    "@logtail/pino": "^0.5.5",
-    "axios": "^1.10.0",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "googleapis": "^150.0.1",
-    "nodemon": "^3.1.10",
-    "pino": "^9.7.0"
+    "nodemon": "^3.1.10"
   }
 }
