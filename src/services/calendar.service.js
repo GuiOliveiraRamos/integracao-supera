@@ -13,6 +13,10 @@ import { normalizeFieldNames } from "../schemas/formData.schema.js";
  * @returns {Promise<Object>} - Resultado da criação do evento
  */
 export async function processFormSubmission(formData) {
+  console.log('[SERVICE] processFormSubmission:start', {
+    hasResponses: !!formData?.responses,
+    responseKeys: formData?.responses ? Object.keys(formData.responses) : [],
+  });
   // Extrair respostas do formulário
   const responses = normalizeFieldNames(formData.responses || {});
 
@@ -22,20 +26,27 @@ export async function processFormSubmission(formData) {
 
   // Validar campos obrigatórios principais
   if (!nomeEvento) {
+    console.error('[SERVICE] MissingField', { field: 'Nome do evento' });
     throw new Error('Campo "Nome do evento" é obrigatório');
   }
   if (!espacoAutorizado) {
+    console.error('[SERVICE] MissingField', { field: 'Espaço autorizado para reserva' });
     throw new Error('Campo "Espaço autorizado para reserva" é obrigatório');
   }
 
   // Processar horário
   const { startDate, endDate } = parseHorarioReserva(responses);
+  console.log('[SERVICE] DatesParsed', {
+    startISO: startDate?.toISOString?.(),
+    endISO: endDate?.toISOString?.(),
+  });
 
   // Construir dados do evento
   const eventData = buildEventData(responses, startDate, endDate);
 
   // Determinar o calendário baseado no espaço
   const calendarId = getCalendarIdBySpace(espacoAutorizado);
+  console.log('[SERVICE] CalendarResolved', { espacoAutorizado, calendarId });
 
   console.log(`Criando evento "${nomeEvento}" no espaço: ${espacoAutorizado}`);
   console.log(
@@ -47,6 +58,7 @@ export async function processFormSubmission(formData) {
 
   // Criar evento no Google Calendar
   const result = await createGoogleCalendarEvent(eventData, null, calendarId);
+  console.log('[SERVICE] CalendarAPI:created', { id: result?.id, link: result?.htmlLink });
 
   console.log("Evento criado com sucesso!", {
     eventId: result.id,

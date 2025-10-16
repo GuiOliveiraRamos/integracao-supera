@@ -10,7 +10,14 @@
  * @param {Function} next - Próximo middleware
  */
 export function errorHandler(err, req, res, next) {
-  console.error("Erro capturado pelo errorHandler:", err);
+  console.error("[ERROR_HANDLER] Erro capturado:", {
+    requestId: req?.requestId,
+    method: req?.method,
+    url: req?.originalUrl || req?.url,
+    message: err?.message,
+    stack: err?.stack,
+    details: err?.details,
+  });
 
   // Se a resposta já foi enviada, delegar para o handler padrão do Express
   if (res.headersSent) {
@@ -24,6 +31,7 @@ export function errorHandler(err, req, res, next) {
   const errorResponse = {
     success: false,
     error: err.message || "Erro interno do servidor",
+    requestId: req?.requestId,
     ...(process.env.NODE_ENV === "development" && {
       stack: err.stack,
       details: err.details,

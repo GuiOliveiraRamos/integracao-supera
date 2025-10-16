@@ -9,6 +9,7 @@ import {
   errorHandler,
   notFoundHandler,
 } from "./middlewares/errorHandler.middleware.js";
+import { correlationId, requestLogger } from "./middlewares/requestLogger.middleware.js";
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -18,6 +19,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middlewares globais
 app.use(express.json());
+app.use(correlationId);
+app.use(requestLogger);
 
 // Registrar todas as rotas
 app.use("/", routes);
@@ -36,4 +39,20 @@ app.listen(PORT, () => {
   console.log(`  POST /webhook/google-forms - Webhook do Google Forms`);
   console.log(`  POST /test-webhook - Teste local`);
   console.log(`\nAmbiente: ${process.env.NODE_ENV || "development"}`);
+});
+
+// Logs de processo para diagnosticar problemas na Vercel
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[PROCESS] UnhandledRejection", {
+    reason,
+    promise,
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[PROCESS] UncaughtException", {
+    message: error?.message,
+    stack: error?.stack,
+  });
+  // Em plataformas serverless, a plataforma encerra o processo automaticamente
 });
